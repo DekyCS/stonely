@@ -13,8 +13,8 @@ from midas_3d import get_midas_generator
 # Create FastAPI instance
 app = FastAPI(
     title="Rockly API",
-    description="AI-powered rock and mineral analysis API",
-    version="1.0.0"
+    description="Advanced AI-powered rock and mineral analysis API with enhanced depth estimation, geological feature recognition, and adaptive 3D mesh generation",
+    version="2.0.0"
 )
 
 # Configure CORS to allow requests from your Next.js frontend
@@ -48,6 +48,15 @@ class ProcessingInfo(BaseModel):
     depth_estimation: str
     device_used: str
     mesh_generation: str
+    preprocessing: str
+    quality_score: float
+
+class QualityMetrics(BaseModel):
+    edge_consistency: float
+    surface_smoothness: float
+    mineral_definition: float
+    range_utilization: float
+    overall_score: float
 
 class ModelDataSummary(BaseModel):
     vertex_count: int
@@ -56,6 +65,8 @@ class ModelDataSummary(BaseModel):
     has_colors: bool
     bbox_min: List[float]
     bbox_max: List[float]
+    adaptive_step: int
+    mesh_quality: str
     
     class Config:
         # This prevents the full vertex/face data from being included in examples
@@ -66,7 +77,9 @@ class ModelDataSummary(BaseModel):
                 "has_texture": True,
                 "has_colors": True,
                 "bbox_min": [-1.0, -1.0, -1.0],
-                "bbox_max": [1.0, 1.0, 1.0]
+                "bbox_max": [1.0, 1.0, 1.0],
+                "adaptive_step": 3,
+                "mesh_quality": "adaptive_high_detail"
             }
         }
 
@@ -78,6 +91,7 @@ class Generate3DResponse(BaseModel):
     processing_info: ProcessingInfo
     generation_time: str
     summary: ModelDataSummary
+    quality_metrics: QualityMetrics
     
     class Config:
         json_schema_extra = {
@@ -87,9 +101,11 @@ class Generate3DResponse(BaseModel):
                 "file_id": "abc123",
                 "model_data": {"note": "Full 3D data with vertices, faces, textures - truncated for docs"},
                 "processing_info": {
-                    "depth_estimation": "Intel/dpt-large",
+                    "depth_estimation": "depth-anything/Depth-Anything-V2-Large",
                     "device_used": "cpu",
-                    "mesh_generation": "grid-based"
+                    "mesh_generation": "adaptive_geological",
+                    "preprocessing": "rock_enhanced",
+                    "quality_score": 0.847
                 },
                 "generation_time": "2024-01-01T12:00:00",
                 "summary": {
@@ -98,7 +114,16 @@ class Generate3DResponse(BaseModel):
                     "has_texture": True,
                     "has_colors": True,
                     "bbox_min": [-1.0, -1.0, -1.0],
-                    "bbox_max": [1.0, 1.0, 1.0]
+                    "bbox_max": [1.0, 1.0, 1.0],
+                    "adaptive_step": 3,
+                    "mesh_quality": "adaptive_high_detail"
+                },
+                "quality_metrics": {
+                    "edge_consistency": 0.852,
+                    "surface_smoothness": 0.794,
+                    "mineral_definition": 0.867,
+                    "range_utilization": 0.913,
+                    "overall_score": 0.847
                 }
             }
         }
@@ -145,9 +170,16 @@ def find_uploaded_file(file_id: str) -> str:
 async def root():
     """Root endpoint to test API is working"""
     return {
-        "message": "Welcome to Rockly API", 
+        "message": "Welcome to Enhanced Rockly API", 
         "status": "active",
-        "version": "1.0.0"
+        "version": "2.0.0",
+        "features": [
+            "Rock-specific preprocessing",
+            "Multi-scale depth estimation", 
+            "Geological feature enhancement",
+            "Adaptive mesh generation",
+            "Quality assessment metrics"
+        ]
     }
 
 @app.get("/health")
@@ -229,11 +261,18 @@ async def upload_image(file: UploadFile = File(...)):
 @app.post("/generate-3d/{file_id}", response_model=Generate3DResponse)
 async def generate_3d_model(file_id: str):
     """
-    Generate 3D model from uploaded image using MiDaS depth estimation
+    Generate enhanced 3D model from uploaded rock image using advanced depth estimation
     
-    - **file_id**: ID of previously uploaded image
+    - **file_id**: ID of previously uploaded rock image
     
-    Returns 3D model data (vertices, faces, textures) ready for Three.js
+    Features:
+    - Rock-specific preprocessing with mineral enhancement
+    - Multi-scale depth estimation for better detail capture
+    - Geological feature enhancement (crystal faces, mineral boundaries)
+    - Adaptive mesh generation based on surface complexity
+    - Quality metrics for assessment
+    
+    Returns enhanced 3D model data (vertices, faces, textures) ready for Three.js
     Note: Full model data is included but truncated in API docs to prevent display issues
     """
     
@@ -265,17 +304,20 @@ async def generate_3d_model(file_id: str):
                 has_texture=bool(model_data.get("texture_coords")),
                 has_colors=bool(model_data.get("colors")),
                 bbox_min=bbox_min,
-                bbox_max=bbox_max
+                bbox_max=bbox_max,
+                adaptive_step=model_data["metadata"].get("adaptive_step", 4),
+                mesh_quality=model_data["metadata"].get("mesh_quality", "adaptive_high_detail")
             )
             
             return Generate3DResponse(
                 success=True,
-                message="3D model generated successfully",
+                message="Enhanced 3D model generated successfully",
                 file_id=file_id,
                 model_data=model_data,  # Full data for actual use
                 processing_info=ProcessingInfo(**processing_info),
                 generation_time=datetime.now().isoformat(),
-                summary=summary
+                summary=summary,
+                quality_metrics=QualityMetrics(**result["quality_metrics"])
             )
         else:
             raise HTTPException(

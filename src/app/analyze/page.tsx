@@ -6,6 +6,7 @@ import { Section } from "@/components/section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RockModel3D, RockModel3DLoader, RockModel3DError } from "@/components/rock-model-3d";
+import { RockAnalysisLoader } from "@/components/ui/rock-analysis-loader";
 import { UploadIcon, ImageIcon, ZapIcon, CheckCircleIcon, XCircleIcon, LoaderIcon } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
@@ -33,12 +34,16 @@ interface Generate3DResponse {
       face_count: number;
       original_dimensions: number[];
       scale_factor: number;
+      adaptive_step: number;
+      mesh_quality: string;
     };
   };
   processing_info: {
     depth_estimation: string;
     device_used: string;
     mesh_generation: string;
+    preprocessing: string;
+    quality_score: number;
   };
   generation_time: string;
   summary: {
@@ -48,6 +53,15 @@ interface Generate3DResponse {
     has_colors: boolean;
     bbox_min: number[];
     bbox_max: number[];
+    adaptive_step: number;
+    mesh_quality: string;
+  };
+  quality_metrics: {
+    edge_consistency: number;
+    surface_smoothness: number;
+    mineral_definition: number;
+    range_utilization: number;
+    overall_score: number;
   };
 }
 
@@ -226,7 +240,14 @@ function UploadSection() {
                   <div className="flex flex-col items-center gap-4">
                     <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
                       {isUploading ? (
-                        <LoaderIcon className="h-8 w-8 text-primary animate-spin" />
+                        <div className="rock-spinner w-8 h-8 relative">
+                          <div></div>
+                          <div></div>
+                          <div></div>
+                          <div></div>
+                          <div></div>
+                          <div></div>
+                        </div>
                       ) : (
                         <UploadIcon className="h-8 w-8 text-primary" />
                       )}
@@ -296,8 +317,8 @@ function UploadSection() {
                     >
                       {isGenerating3D ? (
                         <>
-                          <LoaderIcon className="h-4 w-4 mr-2 animate-spin" />
-                          Generating 3D Model...
+                          <ZapIcon className="h-4 w-4 mr-2 opacity-50" />
+                          Analyzing...
                         </>
                       ) : (
                         <>
@@ -306,6 +327,29 @@ function UploadSection() {
                         </>
                       )}
                     </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 3D Generation Loading */}
+              {isGenerating3D && (
+                <div className="py-12">
+                  <RockAnalysisLoader 
+                    text="Generating 3D Model..."
+                    size="lg"
+                    className="w-full"
+                  />
+                  <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="text-sm text-blue-700 space-y-2">
+                      <p className="font-medium">Processing Steps:</p>
+                      <ul className="text-xs space-y-1 ml-2">
+                        <li>• Rock-specific preprocessing</li>
+                        <li>• Multi-scale depth estimation</li>
+                        <li>• Geological feature enhancement</li>
+                        <li>• Adaptive mesh generation</li>
+                        <li>• Quality assessment</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               )}
@@ -332,9 +376,34 @@ function UploadSection() {
                       <div>
                         <span className="font-medium">Model:</span> {generate3DResult.processing_info.depth_estimation}
                       </div>
+                      <div>
+                        <span className="font-medium">Quality Score:</span> {(generate3DResult.quality_metrics.overall_score * 100).toFixed(1)}%
+                      </div>
+                      <div>
+                        <span className="font-medium">Mesh Quality:</span> {generate3DResult.summary.mesh_quality}
+                      </div>
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Generated: {new Date(generate3DResult.generation_time).toLocaleString()}
+                    </div>
+                  </div>
+
+                  {/* Quality Metrics Detail */}
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="font-medium text-green-800 mb-2">Analysis Quality Metrics</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-green-700">Edge Consistency:</span> {(generate3DResult.quality_metrics.edge_consistency * 100).toFixed(1)}%
+                      </div>
+                      <div>
+                        <span className="text-green-700">Surface Smoothness:</span> {(generate3DResult.quality_metrics.surface_smoothness * 100).toFixed(1)}%
+                      </div>
+                      <div>
+                        <span className="text-green-700">Mineral Definition:</span> {(generate3DResult.quality_metrics.mineral_definition * 100).toFixed(1)}%
+                      </div>
+                      <div>
+                        <span className="text-green-700">Range Utilization:</span> {(generate3DResult.quality_metrics.range_utilization * 100).toFixed(1)}%
+                      </div>
                     </div>
                   </div>
 
